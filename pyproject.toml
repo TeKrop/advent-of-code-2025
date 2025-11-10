@@ -1,0 +1,29 @@
+[project]
+name = "advent_of_code_20XX"
+version = "1.0.0"
+description = "Advent of Code 20XX solutions in Python"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Valentin PORCHET", email = "valentin.porchet@proton.me"}
+]
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "typer==0.20.*",
+    "pyinstrument==5.1.*",
+    "python-dotenv==1.2.*",
+    "httpx==0.28.*",
+    "httpcore==1.0.9", # Due to httpx using old version having an issue with py314
+]
+
+[dependency-groups]
+dev = [
+    "ruff==0.14.*"
+]
+
+[tool.uv]
+compile-bytecode = true
+
+[tool.ruff]
+# Assume Python 3.14
+target-version = "py314"
