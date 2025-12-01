@@ -23,7 +23,7 @@ app = typer.Typer()
 def run(
     day: Annotated[
         int,
-        typer.Argument(min=1, max=26, help="Day of solution to run (ex: 1 for day01)"),
+        typer.Argument(min=1, max=12, help="Day of solution to run (ex: 1 for day01)"),
     ],
     data_type: Annotated[
         DataType,
@@ -88,7 +88,7 @@ def run(
 
     # Make sure we're not sending example data
     if is_example is True:
-        print(f"[red]You can't send an answer for example data[/red]")
+        print("[red]You can't send an answer for example data[/red]")
         raise typer.Exit(1)
 
     # Send the solution for the tasks having an answer
@@ -134,8 +134,12 @@ def create_next_day():
         next_day_num = 1  # Start with day 1 if no folder exists
 
     # If we're already the last day, don't create a new one
-    if next_day_num > 26:
+    if next_day_num > 12:
         print("[red]The last day has already been created, nothing to do.[/red]")
+        raise typer.Exit(1)
+
+    # Try to import input data from AoC before creating anything
+    if not (input_content := get_input(day=next_day_num)):
         raise typer.Exit(1)
 
     day_str = f"day{next_day_num:02d}"
@@ -158,10 +162,7 @@ def create_next_day():
 
     # Import input.txt from AoC or create empty file
     input_file_path = day_path / "input.txt"
-    if input_content := get_input(day=next_day_num):
-        input_file_path.write_text(input_content, encoding="utf-8")
-    else:
-        create_empty_file(file_path=input_file_path)
+    input_file_path.write_text(input_content, encoding="utf-8")
 
 
 if __name__ == "__main__":

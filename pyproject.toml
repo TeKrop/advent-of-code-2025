@@ -21,9 +21,6 @@ dev = [
     "ruff==0.14.*"
 ]
 
-[tool.uv]
-compile-bytecode = true
-
 [tool.ruff]
 # Assume Python 3.14
 target-version = "py314"
