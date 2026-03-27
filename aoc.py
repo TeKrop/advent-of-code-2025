@@ -1,11 +1,11 @@
 import importlib
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from dotenv import load_dotenv
 from pyinstrument import Profiler
 from rich import print
-from typing_extensions import Annotated
 
 from scripts.utils import (
     AnswerResult,
