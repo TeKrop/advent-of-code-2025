@@ -1,7 +1,8 @@
-from scripts.utils import AbstractPuzzleSolver, DataType, min_and_max
-from math import prod, dist
-from itertools import combinations
 from collections import namedtuple
+from itertools import combinations
+from math import dist, prod
+
+from scripts.utils import AbstractPuzzleSolver, DataType, min_and_max
 
 
 class PuzzleSolver(AbstractPuzzleSolver):
@@ -14,7 +15,7 @@ class PuzzleSolver(AbstractPuzzleSolver):
 
     def _compute_junction_boxes_pairs(
         self,
-    ) -> dict[tuple[JunctionBox, JunctionBox], int]:
+    ) -> dict[tuple[JunctionBox, JunctionBox], int | float]:
         """Return sorted boxes combinations ordered by distance ascendant"""
         junction_boxes = {
             JunctionBox(*(int(coord) for coord in line.split(",")))
@@ -109,6 +110,9 @@ class PuzzleSolver(AbstractPuzzleSolver):
 
             # Update circuits with the new pair
             self._update_circuits(circuits, pair)
+
+        if last_pair is None:
+            raise ValueError("Last pair should be defined")
 
         return last_pair[0].x * last_pair[1].x
 

@@ -7,11 +7,11 @@ class PuzzleSolver(AbstractPuzzleSolver):
     ###########################
 
     def _solve_first_part(self) -> int:
-        return None
+        raise NotImplementedError
 
     ###########################
     # DAY X - Second Part
     ###########################
 
     def _solve_second_part(self) -> int:
-        return None
+        raise NotImplementedError

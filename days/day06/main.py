@@ -1,7 +1,8 @@
-from scripts.utils import AbstractPuzzleSolver
-from typing import Callable
-from dataclasses import dataclass
 import operator
+from dataclasses import dataclass
+from typing import Callable
+
+from scripts.utils import AbstractPuzzleSolver
 
 
 class PuzzleSolver(AbstractPuzzleSolver):
@@ -75,6 +76,9 @@ class Problem:
     operator: Callable | None = None
 
     def get_grand_total(self) -> int:
+        if self.operator is None:
+            raise ValueError("Problem operator is not defined")
+
         total = self.numbers[0]
         for number in self.numbers[1:]:
             total = self.operator(total, number)

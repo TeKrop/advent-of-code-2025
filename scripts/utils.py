@@ -28,7 +28,7 @@ class AbstractPuzzleSolver(ABC):
     def line(self):
         return self.lines[0]
 
-    def __get_puzzle_data(self) -> list[str]:
+    def __get_puzzle_data(self) -> None:
         data_file = (
             Path(__file__).parent.parent
             / "days"
