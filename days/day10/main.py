@@ -107,57 +107,179 @@ class PuzzleSolver(AbstractPuzzleSolver):
         # - On fonctionne récursivement :
         #   - pour chaque combinaison (les "2" par exemple), on va tenter de les apposer aux possibles actuels + joltage
         #       - Si à un moment donné ça dépasse, la combinaison n'est pas possible et on continue
-        maximum_value = max(machine.joltage_requirements)
-        maximum_pos = machine.joltage_requirements.index(maximum_value)
-        buttons_without_maximum: list[tuple[int, ...]] = []
-        buttons_with_maximum: list[tuple[int, ...]] = []
-        for button in machine.buttons:
-            if maximum_pos in button:
-                buttons_with_maximum.append(button)
-            else:
-                buttons_without_maximum.append(button)
 
-        nb_buttons_without_max_needed = nb_presses - maximum_value
-        nb_buttons_with_max_needed = nb_presses - nb_buttons_without_max_needed
+        # remaining_requirements = machine.joltage_requirements.copy()
+        # minimum_value = min(remaining_requirements)
+        # minimum_pos = remaining_requirements.index(minimum_value)
 
-        buttons_with_combinations = list(
-            combinations_with_replacement(
-                buttons_with_maximum, nb_buttons_with_max_needed
+        # buttons_without_choosen: list[tuple[int, ...]] = []
+        # buttons_with_choosen: list[tuple[int, ...]] = []
+        # for button in machine.buttons:
+        #     if minimum_pos in button:
+        #         buttons_with_choosen.append(button)
+        #     else:
+        #         buttons_without_choosen.append(button)
+
+        # nb_buttons_with_choosen_needed = minimum_value
+        # print("nb_buttons_with_choosen_needed", nb_buttons_with_choosen_needed)
+
+        # nb_buttons_without_choosen_needed = nb_presses - minimum_value
+        # print("nb_buttons_without_choosen_needed", nb_buttons_without_choosen_needed)
+
+        # starting_joltage: list[int] = [0] * machine.nb_joltage_levels
+        # buttons_with_combinations = list(
+        #     combinations_with_replacement(
+        #         buttons_with_choosen, nb_buttons_with_choosen_needed
+        #     )
+        # )
+        # print("buttons_with_combinations", len(buttons_with_combinations))
+        # valid_buttons_with_combinations: dict[tuple[int, ...], list[int]] = {}
+        # cpt = 0
+        # for buttons_list in buttons_with_combinations:
+        #     cpt += 1
+        #     if cpt % 100000 == 0:
+        #         print(cpt)
+        #     try:
+        #         updated_joltage = self._apply_joltage(
+        #             machine, buttons_list, starting_joltage
+        #         )
+        #     except ValueError:
+        #         continue
+        #     valid_buttons_with_combinations[buttons_list] = updated_joltage
+
+        # print("valid_buttons_with_combinations :", len(valid_buttons_with_combinations))
+
+        starting_joltage: list[int] = [0] * machine.nb_joltage_levels
+        remaining_buttons: list[tuple[int, ...]] = machine.buttons.copy()
+        remaining_presses: int = nb_presses
+        remaining_requirements: list[int] = machine.joltage_requirements.copy()
+        valid_buttons_with_combinations, used_buttons, nb_pushes_used = (
+            self._get_valid_buttons(
+                machine,
+                remaining_buttons,
+                remaining_requirements,
+                remaining_presses,
+                starting_joltage,
             )
         )
+
+        # TODO : iterate
+        # Remove already used buttons
+        for button in used_buttons:
+            remaining_buttons.remove(button)
+
+        # Update remaining number of pushes
+        remaining_presses -= nb_pushes_used
+
+        for actual_buttons, actual_joltage in valid_buttons_with_combinations.items():
+            valid_buttons_with_combinations, used_buttons, nb_pushes_used = (
+                self._get_valid_buttons(
+                    machine,
+                    remaining_buttons,
+                    remaining_requirements,
+                    remaining_presses,
+                    actual_joltage,
+                )
+            )
+
+        # Now do recursively the remaining stuff
         buttons_without_combinations = list(
-            combinations_with_replacement(
-                buttons_without_maximum, nb_buttons_without_max_needed
-            )
+            combinations_with_replacement(current_buttons, remaining_presses)
         )
 
-        print("buttons_with_combinations :", len(buttons_with_combinations))
         print("buttons_without_combinations :", len(buttons_without_combinations))
         print(
-            "Buttons combi total :",
-            len(buttons_with_combinations) * len(buttons_without_combinations),
+            "Valid buttons combi total :",
+            len(valid_buttons_with_combinations) * len(buttons_without_combinations),
         )
 
         combined_combinations = [
             buttons_with + buttons_without
-            for buttons_with in buttons_with_combinations
+            for buttons_with in valid_buttons_with_combinations.keys()
             for buttons_without in buttons_without_combinations
         ]
 
         return combined_combinations
+
+    def _get_valid_buttons(
+        self,
+        machine: Machine,
+        buttons: list[tuple[int, ...]],
+        joltage_requirements: list[int],
+        nb_remaining_presses: int,
+        starting_joltage: list[int],
+    ) -> tuple[dict[list[tuple[int, ...]], list[int]], list[tuple[int, ...]], int]:
+        remaining_requirements = joltage_requirements.copy()
+        minimum_value = min(remaining_requirements)
+        minimum_pos = remaining_requirements.index(minimum_value)
+
+        buttons_without_choosen: list[tuple[int, ...]] = []
+        buttons_with_choosen: list[tuple[int, ...]] = []
+        for button in buttons:
+            if minimum_pos in button:
+                buttons_with_choosen.append(button)
+            else:
+                buttons_without_choosen.append(button)
+
+        nb_pushes_with_choosen_needed = minimum_value
+        print("nb_pushes_with_choosen_needed", nb_pushes_with_choosen_needed)
+
+        nb_pushes_without_choosen_needed = (
+            nb_remaining_presses - nb_pushes_with_choosen_needed
+        )
+        print("nb_pushes_without_choosen_needed", nb_pushes_without_choosen_needed)
+
+        buttons_with_combinations = list(
+            combinations_with_replacement(
+                buttons_with_choosen, nb_pushes_with_choosen_needed
+            )
+        )
+        print("buttons_with_combinations", len(buttons_with_combinations))
+        valid_buttons_with_combinations: dict[list[tuple[int, ...]], list[int]] = {}
+        for buttons_list in buttons_with_combinations:
+            try:
+                updated_joltage = self._apply_joltage(
+                    machine, buttons_list, starting_joltage
+                )
+            except ValueError:
+                continue
+            valid_buttons_with_combinations[buttons_list] = updated_joltage
+
+        print("valid_buttons_with_combinations :", len(valid_buttons_with_combinations))
+
+        return (
+            valid_buttons_with_combinations,
+            buttons_with_choosen,
+            nb_pushes_with_choosen_needed,
+        )
+
+    def _apply_joltage(
+        self,
+        machine: Machine,
+        buttons_list: Iterable[tuple[int, ...]],
+        starting_joltage: list[int],
+    ) -> list[int]:
+        updated_joltage = starting_joltage.copy()
+
+        for buttons in buttons_list:
+            for button in buttons:
+                updated_joltage[button] += 1
+                if updated_joltage[button] > machine.joltage_requirements[button]:
+                    raise ValueError("Joltage requirements are not met")
+
+        return updated_joltage
 
     def _is_valid_voltage(
         self, machine: Machine, buttons_list: Iterable[tuple[int, ...]]
     ) -> bool:
         joltage: list[int] = [0] * machine.nb_joltage_levels
 
-        for buttons in buttons_list:
-            for button in buttons:
-                joltage[button] += 1
-                if joltage[button] > machine.joltage_requirements[button]:
-                    return False
+        try:
+            updated_joltage = self._apply_joltage(machine, buttons_list, joltage)
+        except ValueError:
+            return False
 
-        return joltage == machine.joltage_requirements
+        return updated_joltage == machine.joltage_requirements
 
 
 class Machine:
