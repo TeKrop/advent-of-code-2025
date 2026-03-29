@@ -1,4 +1,5 @@
 import re
+from dataclasses import dataclass
 from functools import cached_property
 from itertools import combinations_with_replacement
 from typing import Iterable
@@ -64,222 +65,102 @@ class PuzzleSolver(AbstractPuzzleSolver):
         )
 
     def get_joltage_fewest_button_presses(self, machine: Machine) -> int:
-        nb_presses = max(machine.joltage_requirements)
-        print("------")
-        print(nb_presses)
+        print("----")
         print(machine)
-        while not self._has_any_valid_joltage_combination(machine, nb_presses):
-            print("------")
-            print(nb_presses)
-            print(machine)
-            nb_presses += 1
-        return nb_presses
+        ordered_requirements = self._get_ordered_requirements(machine)
 
-    def _has_any_valid_joltage_combination(
-        self, machine: Machine, nb_presses: int
-    ) -> bool:
-        possible_combinations = self._get_joltage_combinations(machine, nb_presses)
-        return any(
-            self._is_valid_voltage(machine, buttons)
-            for buttons in possible_combinations
-        )
-
-    def _get_joltage_combinations(self, machine: Machine, nb_presses: int) -> Iterable:
-        # Get min combinations. Ex with 7 (), combinations must have :
-        # - Toutes les combinations doivent avoir un "3" sinon ça fera moins de 7
-        # - Si 8 : 1 combinaison ne doit pas avoir de 3, toutes les autres si
-        # - Si 9 : 2 combi doivent ne pas avoir de 3, les 7 autres doivent
-
-        # Autre réflexion : prendre l'indice le moins fréquent dans les boutons.
-        # Exemple avec le cas de 0 à 7 avec 239 en maximum
-        # -> (0,4,5,6) (1,3,6) (0,1,2,3,4,5,6) (0,3,6,7) (1,2,3,4,6,7) (1,2,4,5) {206,71,52,235,56,42,239,196}
-        # - Une fois les deux avec 7 pris en compte, on compte le nombre de combinaisons potentiellement valides
-        #   - Certaines combinaisons ne le seront pas car valeur trop élevée sur un autre indice.
-        #       - Facilement identifiable : (0,3,6,7) seul est OK, mais (1,2,3,4,6,7) ne pourra être là que 52 fois "2"
-        #   - Chaque combinaison donnera déjà un état de joltage
-        #   - On peut très bien prendre UN SEUL des deux en combinaisons mais X fois si c'est OK
-        #       - Cas limite à éviter pour la complexité dans la sélection initiale
-        # - On obtient une liste limitée des possibilités avec les deux
-        #   - Cette liste sera multipliée avec les suivantes pour donner les possibles
-        #   - Ou alors on fera du test en direct avec le prochain groupe pour limiter le nombre dès que possible
-        # -> [.##.##.#] (0,4,5,6) (1,3,6) (0,1,2,3,4,5,6) (1,2,4,5) {206,71,52,235,56,42,239,196}
-        # - On réduit la liste initiale en retirant les deux, puis on prend le suivant moins fréquent
-        # - On fonctionne récursivement :
-        #   - pour chaque combinaison (les "2" par exemple), on va tenter de les apposer aux possibles actuels + joltage
-        #       - Si à un moment donné ça dépasse, la combinaison n'est pas possible et on continue
-
-        # remaining_requirements = machine.joltage_requirements.copy()
-        # minimum_value = min(remaining_requirements)
-        # minimum_pos = remaining_requirements.index(minimum_value)
-
-        # buttons_without_choosen: list[tuple[int, ...]] = []
-        # buttons_with_choosen: list[tuple[int, ...]] = []
-        # for button in machine.buttons:
-        #     if minimum_pos in button:
-        #         buttons_with_choosen.append(button)
-        #     else:
-        #         buttons_without_choosen.append(button)
-
-        # nb_buttons_with_choosen_needed = minimum_value
-        # print("nb_buttons_with_choosen_needed", nb_buttons_with_choosen_needed)
-
-        # nb_buttons_without_choosen_needed = nb_presses - minimum_value
-        # print("nb_buttons_without_choosen_needed", nb_buttons_without_choosen_needed)
-
-        # starting_joltage: list[int] = [0] * machine.nb_joltage_levels
-        # buttons_with_combinations = list(
-        #     combinations_with_replacement(
-        #         buttons_with_choosen, nb_buttons_with_choosen_needed
-        #     )
-        # )
-        # print("buttons_with_combinations", len(buttons_with_combinations))
-        # valid_buttons_with_combinations: dict[tuple[int, ...], list[int]] = {}
-        # cpt = 0
-        # for buttons_list in buttons_with_combinations:
-        #     cpt += 1
-        #     if cpt % 100000 == 0:
-        #         print(cpt)
-        #     try:
-        #         updated_joltage = self._apply_joltage(
-        #             machine, buttons_list, starting_joltage
-        #         )
-        #     except ValueError:
-        #         continue
-        #     valid_buttons_with_combinations[buttons_list] = updated_joltage
-
-        # print("valid_buttons_with_combinations :", len(valid_buttons_with_combinations))
-
-        starting_joltage: list[int] = [0] * machine.nb_joltage_levels
-        remaining_buttons: list[tuple[int, ...]] = machine.buttons.copy()
-        remaining_presses: int = nb_presses
-        remaining_requirements: list[int] = machine.joltage_requirements.copy()
-        valid_buttons_with_combinations, used_buttons, nb_pushes_used = (
-            self._get_valid_buttons(
-                machine,
-                remaining_buttons,
-                remaining_requirements,
-                remaining_presses,
-                starting_joltage,
+        # Initialize the first combination, and then we'll explode it at each iteration
+        combination_list = [
+            Combination(
+                current_buttons=machine.buttons.copy(),
+                current_joltage=[0] * machine.nb_joltage_levels,
+                nb_pushes=0,
+                ordered_requirements=ordered_requirements,
+                joltage_requirements=machine.joltage_requirements,
             )
-        )
-
-        # TODO : iterate
-        # Remove already used buttons
-        for button in used_buttons:
-            remaining_buttons.remove(button)
-
-        # Update remaining number of pushes
-        remaining_presses -= nb_pushes_used
-
-        for actual_buttons, actual_joltage in valid_buttons_with_combinations.items():
-            valid_buttons_with_combinations, used_buttons, nb_pushes_used = (
-                self._get_valid_buttons(
-                    machine,
-                    remaining_buttons,
-                    remaining_requirements,
-                    remaining_presses,
-                    actual_joltage,
-                )
-            )
-
-        # Now do recursively the remaining stuff
-        buttons_without_combinations = list(
-            combinations_with_replacement(current_buttons, remaining_presses)
-        )
-
-        print("buttons_without_combinations :", len(buttons_without_combinations))
-        print(
-            "Valid buttons combi total :",
-            len(valid_buttons_with_combinations) * len(buttons_without_combinations),
-        )
-
-        combined_combinations = [
-            buttons_with + buttons_without
-            for buttons_with in valid_buttons_with_combinations.keys()
-            for buttons_without in buttons_without_combinations
         ]
 
-        return combined_combinations
+        # print("COMBINATION", len(combination_list))
+        # print(combination_list)
 
-    def _get_valid_buttons(
-        self,
-        machine: Machine,
-        buttons: list[tuple[int, ...]],
-        joltage_requirements: list[int],
-        nb_remaining_presses: int,
-        starting_joltage: list[int],
-    ) -> tuple[dict[list[tuple[int, ...]], list[int]], list[tuple[int, ...]], int]:
-        remaining_requirements = joltage_requirements.copy()
-        minimum_value = min(remaining_requirements)
-        minimum_pos = remaining_requirements.index(minimum_value)
+        while not any(combination.is_valid() for combination in combination_list):
+            combination_list = self._compute_lowest_joltage(combination_list)
+            # print("COMBINATION", len(combination_list))
+            # print(combination_list)
 
-        buttons_without_choosen: list[tuple[int, ...]] = []
-        buttons_with_choosen: list[tuple[int, ...]] = []
-        for button in buttons:
-            if minimum_pos in button:
-                buttons_with_choosen.append(button)
-            else:
-                buttons_without_choosen.append(button)
-
-        nb_pushes_with_choosen_needed = minimum_value
-        print("nb_pushes_with_choosen_needed", nb_pushes_with_choosen_needed)
-
-        nb_pushes_without_choosen_needed = (
-            nb_remaining_presses - nb_pushes_with_choosen_needed
+        print("COMBINATION", len(combination_list))
+        result = min(
+            combination.nb_pushes
+            for combination in combination_list
+            if combination.is_valid()
         )
-        print("nb_pushes_without_choosen_needed", nb_pushes_without_choosen_needed)
+        print(result)
+        return result
 
-        buttons_with_combinations = list(
-            combinations_with_replacement(
-                buttons_with_choosen, nb_pushes_with_choosen_needed
+    def _get_ordered_requirements(self, machine: Machine) -> list[tuple[int, int]]:
+        # Order requirements by descending value, we'll
+        # always pop the last one when getting buttons
+        ordered_requirements: list[tuple[int, int]] = [
+            (index, value) for index, value in enumerate(machine.joltage_requirements)
+        ]
+        ordered_requirements.sort(key=lambda v: v[1], reverse=True)
+
+        return ordered_requirements
+
+    def _compute_lowest_joltage(
+        self, combination_list: list[Combination]
+    ) -> list[Combination]:
+        # TODO : submethods to make it cleaner
+        new_combination_list: list[Combination] = []
+
+        for combination in combination_list:
+            index, target_value = combination.ordered_requirements.pop()
+
+            choosen_buttons, remaining_buttons = [], []
+            for button in combination.current_buttons:
+                if index in button:
+                    choosen_buttons.append(button)
+                else:
+                    remaining_buttons.append(button)
+
+            current_target_value = target_value - combination.current_joltage[index]
+            choosen_buttons_combinations = list(
+                combinations_with_replacement(choosen_buttons, current_target_value)
             )
-        )
-        print("buttons_with_combinations", len(buttons_with_combinations))
-        valid_buttons_with_combinations: dict[list[tuple[int, ...]], list[int]] = {}
-        for buttons_list in buttons_with_combinations:
-            try:
-                updated_joltage = self._apply_joltage(
-                    machine, buttons_list, starting_joltage
+
+            for buttons_list in choosen_buttons_combinations:
+                try:
+                    updated_joltage = self._apply_joltage(combination, buttons_list)
+                except ValueError:
+                    continue
+
+                # Button combination is OK, let's save updated combination
+                new_combination_list.append(
+                    Combination(
+                        current_buttons=remaining_buttons,
+                        current_joltage=updated_joltage,
+                        nb_pushes=combination.nb_pushes + current_target_value,
+                        ordered_requirements=combination.ordered_requirements.copy(),
+                        joltage_requirements=combination.joltage_requirements,
+                    )
                 )
-            except ValueError:
-                continue
-            valid_buttons_with_combinations[buttons_list] = updated_joltage
 
-        print("valid_buttons_with_combinations :", len(valid_buttons_with_combinations))
+            # print("new_combination_list :", len(new_combination_list))
 
-        return (
-            valid_buttons_with_combinations,
-            buttons_with_choosen,
-            nb_pushes_with_choosen_needed,
-        )
+        return new_combination_list
 
     def _apply_joltage(
-        self,
-        machine: Machine,
-        buttons_list: Iterable[tuple[int, ...]],
-        starting_joltage: list[int],
+        self, combination: Combination, buttons_list: Iterable[tuple[int, ...]]
     ) -> list[int]:
-        updated_joltage = starting_joltage.copy()
+        updated_joltage = combination.current_joltage.copy()
 
         for buttons in buttons_list:
             for button in buttons:
                 updated_joltage[button] += 1
-                if updated_joltage[button] > machine.joltage_requirements[button]:
+                if updated_joltage[button] > combination.joltage_requirements[button]:
                     raise ValueError("Joltage requirements are not met")
 
         return updated_joltage
-
-    def _is_valid_voltage(
-        self, machine: Machine, buttons_list: Iterable[tuple[int, ...]]
-    ) -> bool:
-        joltage: list[int] = [0] * machine.nb_joltage_levels
-
-        try:
-            updated_joltage = self._apply_joltage(machine, buttons_list, joltage)
-        except ValueError:
-            return False
-
-        return updated_joltage == machine.joltage_requirements
 
 
 class Machine:
@@ -315,3 +196,15 @@ class Machine:
     @cached_property
     def nb_joltage_levels(self) -> int:
         return len(self.joltage_requirements)
+
+
+@dataclass
+class Combination:
+    current_buttons: list[tuple[int, ...]]
+    current_joltage: list[int]
+    nb_pushes: int
+    ordered_requirements: list[tuple[int, int]]
+    joltage_requirements: list[int]
+
+    def is_valid(self) -> bool:
+        return self.current_joltage == self.joltage_requirements
