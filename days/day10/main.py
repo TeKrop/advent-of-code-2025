@@ -89,6 +89,24 @@ class PuzzleSolver(AbstractPuzzleSolver):
         # - Toutes les combinations doivent avoir un "3" sinon ça fera moins de 7
         # - Si 8 : 1 combinaison ne doit pas avoir de 3, toutes les autres si
         # - Si 9 : 2 combi doivent ne pas avoir de 3, les 7 autres doivent
+
+        # Autre réflexion : prendre l'indice le moins fréquent dans les boutons.
+        # Exemple avec le cas de 0 à 7 avec 239 en maximum
+        # -> (0,4,5,6) (1,3,6) (0,1,2,3,4,5,6) (0,3,6,7) (1,2,3,4,6,7) (1,2,4,5) {206,71,52,235,56,42,239,196}
+        # - Une fois les deux avec 7 pris en compte, on compte le nombre de combinaisons potentiellement valides
+        #   - Certaines combinaisons ne le seront pas car valeur trop élevée sur un autre indice.
+        #       - Facilement identifiable : (0,3,6,7) seul est OK, mais (1,2,3,4,6,7) ne pourra être là que 52 fois "2"
+        #   - Chaque combinaison donnera déjà un état de joltage
+        #   - On peut très bien prendre UN SEUL des deux en combinaisons mais X fois si c'est OK
+        #       - Cas limite à éviter pour la complexité dans la sélection initiale
+        # - On obtient une liste limitée des possibilités avec les deux
+        #   - Cette liste sera multipliée avec les suivantes pour donner les possibles
+        #   - Ou alors on fera du test en direct avec le prochain groupe pour limiter le nombre dès que possible
+        # -> [.##.##.#] (0,4,5,6) (1,3,6) (0,1,2,3,4,5,6) (1,2,4,5) {206,71,52,235,56,42,239,196}
+        # - On réduit la liste initiale en retirant les deux, puis on prend le suivant moins fréquent
+        # - On fonctionne récursivement :
+        #   - pour chaque combinaison (les "2" par exemple), on va tenter de les apposer aux possibles actuels + joltage
+        #       - Si à un moment donné ça dépasse, la combinaison n'est pas possible et on continue
         maximum_value = max(machine.joltage_requirements)
         maximum_pos = machine.joltage_requirements.index(maximum_value)
         buttons_without_maximum: list[tuple[int, ...]] = []
