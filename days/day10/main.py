@@ -1,12 +1,8 @@
-import math
 import re
-from collections import defaultdict
 from dataclasses import dataclass
-from functools import cache, cached_property
-from itertools import combinations_with_replacement, product
+from functools import cached_property
+from itertools import combinations_with_replacement
 from typing import Iterable
-
-from rich import print
 
 from scripts.utils import AbstractPuzzleSolver
 
@@ -67,8 +63,6 @@ class PuzzleSolver(AbstractPuzzleSolver):
         )
 
     def get_joltage_fewest_button_presses(self, machine: Machine) -> int:
-        print("----")
-        print(machine)
         ordered_requirements = self._get_ordered_requirements(machine)
 
         # Initialize the first combination, and then we'll explode it at each iteration
@@ -82,23 +76,14 @@ class PuzzleSolver(AbstractPuzzleSolver):
             )
         ]
 
-        # print("COMBINATION", len(combination_list))
-        # print(combination_list)
-
         while not any(combination.is_valid() for combination in combination_list):
             combination_list = self._compute_lowest_joltage(combination_list)
-            # print("COMBINATION", len(combination_list))
-            # print(combination_list[0].current_buttons)
-            # print(combination_list)
 
-        # print("COMBINATION", len(combination_list))
-        result = min(
+        return min(
             combination.nb_pushes
             for combination in combination_list
             if combination.is_valid()
         )
-        print(result)
-        return result
 
     def _get_ordered_requirements(self, machine: Machine) -> list[tuple[int, int]]:
         """
@@ -110,20 +95,15 @@ class PuzzleSolver(AbstractPuzzleSolver):
 
         remaining_buttons = machine.buttons.copy()
         while len(remaining_buttons) > 0:
-            # print("remaining_buttons : ", remaining_buttons)
-
             # Get the index value which is in less buttons
             buttons_by_indexes = {
                 index: [button for button in remaining_buttons if index in button]
                 for index, _ in enumerate(machine.joltage_requirements)
             }
-            # print("buttons_by_indexes : ", buttons_by_indexes)
-
             choosen_index = min(
                 (index for index, buttons in buttons_by_indexes.items() if buttons),
                 key=lambda index: len(buttons_by_indexes[index]),
             )
-            # print("choosen_index : ", choosen_index)
 
             # We'll add it in the ordered requirements along with corresponding value
             ordered_requirements.append(
@@ -134,17 +114,14 @@ class PuzzleSolver(AbstractPuzzleSolver):
             for button in buttons_by_indexes[choosen_index]:
                 remaining_buttons.remove(button)
 
+        # Ensure lower values will be "poped" first
         ordered_requirements.sort(key=lambda v: v[1], reverse=True)
-
-        print("joltage_requirements : ", machine.joltage_requirements)
-        print("ordered_requirements : ", ordered_requirements)
 
         return ordered_requirements
 
     def _compute_lowest_joltage(
         self, combination_list: list[Combination]
     ) -> list[Combination]:
-        # TODO : submethods to make it cleaner
         new_combination_list: list[Combination] = []
 
         for combination in combination_list:
@@ -158,21 +135,14 @@ class PuzzleSolver(AbstractPuzzleSolver):
                 else:
                     remaining_buttons.append(button)
 
-            # Is current_target_value OK regarding the other values ? Maybe will be less
-
             choosen_buttons_combinations = self._get_possible_buttons_combinations(
                 combination, choosen_buttons, current_target_value
             )
 
-            # print("current_target_value : ", current_target_value)
-            # print("combinations : ", len(choosen_buttons_combinations))
-
-            nb_rejected = 0
             for buttons_list in choosen_buttons_combinations:
                 try:
                     updated_joltage = self._apply_joltage(combination, buttons_list)
                 except ValueError:
-                    nb_rejected += 1
                     continue
 
                 # Button combination is OK, let's save updated combination
@@ -186,9 +156,6 @@ class PuzzleSolver(AbstractPuzzleSolver):
                     )
                 )
 
-            # print("nb rejected : ", nb_rejected)
-            # print("new_combination_list :", len(new_combination_list))
-
         return new_combination_list
 
     def _get_possible_buttons_combinations(
@@ -197,7 +164,6 @@ class PuzzleSolver(AbstractPuzzleSolver):
         choosen_buttons: list[tuple[int, ...]],
         current_target_value: int,
     ) -> list[list[tuple[int, ...]]]:
-
         # Each button has a max presses depending on the actual joltage.
         # We'll combine these to ensure proper coverage
         buttons_max: dict[tuple[int, ...], int] = {
@@ -214,49 +180,14 @@ class PuzzleSolver(AbstractPuzzleSolver):
         # Buttons with 0 should be rejected
         for buttons_list, max_pushes in buttons_max.items():
             if max_pushes == 0:
-                # print("REMOOOVE")
                 choosen_buttons.remove(buttons_list)
 
         if not choosen_buttons:
-            # print("ZEROOOO")
             return [[tuple()]]
 
-        # print(combination)
-        # print("buttons_max : ", buttons_max)
-        # print("current_target_value : ", current_target_value)
-
-        # all_combs = list(
-        #     combinations_with_replacement(choosen_buttons, current_target_value)
-        # )
-
-        # print("all_combs: ", len(all_combs))
-        # print(all_combs[0])
-
-        limit_combs = list(
-            self.constrained_combinations(
-                choosen_buttons, buttons_max.values(), current_target_value
-            )
+        return list(
+            combinations_with_replacement(choosen_buttons, current_target_value)
         )
-
-        # print("limit_combs: ", len(limit_combs))
-        # print(limit_combs[0])
-
-        return limit_combs
-
-    def constrained_combinations(self, buttons, max_pushes, total):
-        """
-        Yields tuples of (button, count) for each valid combination
-        where sum of counts == total and each count <= max_pushes[i].
-        """
-        ranges = [range(0, min(max_p, total) + 1) for max_p in max_pushes]
-
-        for counts in product(*ranges):
-            if sum(counts) == total:
-                yield tuple(
-                    button
-                    for button, count in zip(buttons, counts)
-                    for _ in range(count)
-                )
 
     def _apply_joltage(
         self, combination: Combination, buttons_list: Iterable[tuple[int, ...]]
@@ -270,9 +201,6 @@ class PuzzleSolver(AbstractPuzzleSolver):
                     raise ValueError("Joltage requirements are not met")
 
         return updated_joltage
-
-    def new_get_joltage_fewest_button_presses(self, machine: Machine) -> int:
-        return 0
 
 
 class Machine:
