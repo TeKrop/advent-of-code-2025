@@ -22,22 +22,26 @@ class PuzzleSolver(AbstractPuzzleSolver):
         self.start: str = "you"
         self.end: str = "out"
 
-        devices = [self.start]
-        while not all(device == self.end for device in devices):
-            devices = self._get_output_devices(devices)
+        devices, nb_out = [self.start], 0
 
-        return len(devices)
+        while len(devices) > 0:
+            devices, nb_out = self._process_output_devices(devices, nb_out)
 
-    def _get_output_devices(self, input_devices: list[str]) -> list[str]:
+        return nb_out
+
+    def _process_output_devices(
+        self, input_devices: list[str], nb_out: int
+    ) -> tuple[list[str], int]:
         output_devices: list[str] = []
 
-        for device in input_devices:
-            if device == self.end:
-                output_devices.append(self.end)
-                continue
-            output_devices.extend(self.devices[device])
+        for input_device in input_devices:
+            for output_device in self.devices[input_device]:
+                if output_device == self.end:
+                    nb_out += 1
+                else:
+                    output_devices.append(output_device)
 
-        return output_devices
+        return output_devices, nb_out
 
     ###########################
     # DAY 11 - Second Part
